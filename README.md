@@ -1,9 +1,37 @@
-# real-time-hand-tracker
-Real-Time Hand Tracking in the Browser Track and visualize hand movements in real time with MediaPipe Hands and JavaScript. Detect 21 hand landmarks, recognize gestures, and bring gesture-based interactions to your web apps—no extra hardware required!
-This project is a real-time hand tracking application built using MediaPipe Hands and JavaScript, designed to detect and track the movements of human hands directly through a webcam. The system leverages state-of-the-art computer vision and machine learning techniques to identify 21 key landmarks on each hand, including fingertips, joints, and the wrist, providing highly accurate hand pose estimation in real time. The application is lightweight, runs entirely in the browser, and does not require any specialized hardware or software beyond a standard webcam and a modern browser, making it accessible to a wide range of users.
+# ✋ Real-Time Hand Tracking (MediaPipe + JavaScript)
 
-The main goal of this repository is to provide a hands-on, easy-to-use framework for developers, students, and hobbyists who are interested in exploring gesture recognition, human-computer interaction, and augmented reality interfaces. The system can be easily extended to support gesture-based controls, such as counting fingers, recognizing specific hand signs, or triggering actions in interactive applications and games. It can also serve as a foundation for AR/VR experiences, sign language interpretation, and other innovative projects that rely on real-time hand motion detection.
+This project demonstrates *real-time hand landmark tracking* using *MediaPipe Hands* and *JavaScript*, running entirely in the browser.
 
-Technically, the project uses MediaPipe Hands, a machine learning pipeline by Google, for hand detection and landmark estimation, combined with the Canvas API in JavaScript for rendering visual feedback. The landmarks are connected with lines to visualize the skeletal structure of the hand, giving users a clear, interactive view of hand movement in real time. The application is designed to be modular, scalable, and user-friendly, with straightforward code that can be adapted for additional features such as multi-hand tracking, hand gesture classification, or integration with other web-based applications.
+It detects *21 hand landmarks*, tracks fingers, and renders connections in real time.
 
-By open-sourcing this project, the aim is to provide a learning resource for anyone interested in computer vision, AI-powered human-computer interaction, or front-end development with machine learning. Whether you are a beginner looking to understand hand tracking principles or an experienced developer aiming to integrate gesture-based controls into your web projects, this repository offers a complete, ready-to-use solution with clear documentation and easy setup instructions.
+---
+
+## 🚀 Live Demo
+Enable *GitHub Pages* after uploading to see it live.
+
+---
+
+## 📸 Features
+- Real-time hand detection
+- 21 landmark points per hand
+- Finger & palm tracking
+- Sci-fi HUD overlay
+- Runs fully in browser (no backend)
+
+---
+
+## 🛠 Technologies Used
+- MediaPipe Hands
+- JavaScript
+- HTML5 Canvas
+- Web Camera API
+
+---
+
+## 📂 Project Structure
+real-time-hand-tracker/
+│
+├── index.html        # Main HTML file (camera + canvas setup)
+├── script.js         # Hand tracking logic using MediaPipe
+├── README.md         # Project documentation
+└── .gitignore        # (Optional) Git ignore file
