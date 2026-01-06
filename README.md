@@ -1,37 +1,51 @@
-# ✋ Real-Time Hand Tracking (MediaPipe + JavaScript)
+# 🖐 Neural Hand Interface
 
-This project demonstrates *real-time hand landmark tracking* using *MediaPipe Hands* and *JavaScript*, running entirely in the browser.
+A futuristic **gesture-controlled UI** built using **MediaPipe Hands + HTML Canvas**.  
+Control visual effects, modes, and magical interactions using real-time hand gestures.
 
-It detects *21 hand landmarks*, tracks fingers, and renders connections in real time.
-
----
-
-## 🚀 Live Demo
-Enable *GitHub Pages* after uploading to see it live.
+Inspired by sci-fi HUDs, neural interfaces, and Doctor Strange-style magic circles ✨
 
 ---
 
-## 📸 Features
-- Real-time hand detection
-- 21 landmark points per hand
-- Finger & palm tracking
-- Sci-fi HUD overlay
-- Runs fully in browser (no backend)
+## 🚀 Features
+
+- 🎥 Real-time hand tracking (MediaPipe Hands)
+- 🧠 Intelligent gesture recognition
+- 🪄 Magic spell activation using fists
+- ❤️ Heart gesture detection
+- ✌ Victory / celebration mode
+- 🔮 Animated mandala magic circles
+- 🌧 Particle effects (rain, orbitals, hearts, stars)
+- 🖥 Sci-Fi HUD overlay
+- ⚡ 60 FPS optimized canvas rendering
 
 ---
 
-## 🛠 Technologies Used
-- MediaPipe Hands
-- JavaScript
-- HTML5 Canvas
-- Web Camera API
+## 🧩 Gestures Supported
+
+| Gesture | Action |
+|-------|--------|
+| ✋✋ Open Hands | Unlock system |
+| ✊ Fist | Cast magic |
+| ❤️ Heart (2 hands) | Love mode |
+| ✌ Peace | Victory mode |
+| 👍 Thumbs Up | Like |
+| 🤙 Call Me | Call signal |
+| 🤘 Rock On | Rock mode |
+| 🕷 Spiderman | Web shooters |
+
+---
+
+## 🛠 Tech Stack
+
+- **HTML5**
+- **CSS3**
+- **JavaScript**
+- **MediaPipe Hands**
+- **Canvas API**
+
+No frameworks. No backend. Runs fully in the browser.
 
 ---
 
 ## 📂 Project Structure
-real-time-hand-tracker/
-│
-├── index.html        # Main HTML file (camera + canvas setup)
-├── script.js         # Hand tracking logic using MediaPipe
-├── README.md         # Project documentation
-└── .gitignore        # (Optional) Git ignore file
