@@ -49,3 +49,12 @@ No frameworks. No backend. Runs fully in the browser.
 ---
 
 ## 📂 Project Structure
+neural-hand-interface/
+│
+├── index.html              # Your main file (the code you sent)
+├── README.md               # Project documentation
+├── LICENSE                 # Open-source license
+├── .gitignore              # Ignore junk files
+├── package.json            # Optional (for professionalism)
+├── assets/
+│   ├── preview.gif         # Demo GIF (optional
