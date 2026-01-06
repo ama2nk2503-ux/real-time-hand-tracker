@@ -57,4 +57,15 @@ neural-hand-interface/
 ├── .gitignore              # Ignore junk files
 ├── package.json            # Optional (for professionalism)
 ├── assets/
-│   ├── preview.gif         # Demo GIF (optional
+│   ├── preview.gif         # Demo GIF (optional)
+
+🔒 Permissions Used
+Camera (for hand tracking)
+No data is stored or sent to any server
+
+👨‍💻 Author
+Amaan Khan
+B.Tech CSE (IoT + Cybersecurity)
+Lokmanya Tilak College of engineering Koper khairane 
+Gesture Interfaces • Web Graphics • AI Interaction
+⭐ If you like this project, give it a star!
