@@ -59,11 +59,17 @@ neural-hand-interface/
 ├── assets/
 │   ├── preview.gif         # Demo GIF (optional)
 
-##🔒 Permissions Used
+
+---
+
+🔒 Permissions Used
 Camera (for hand tracking)
 No data is stored or sent to any server
 
-##👨‍💻 Author
+---
+
+
+👨‍💻 Author
 Amaan Khan
 B.Tech CSE (IoT + Cybersecurity)
 Lokmanya Tilak College of engineering Koper khairane 
