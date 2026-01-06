@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Real-Time Hand Tracking</title>
+
+  <!-- MediaPipe CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      color: cyan;
+      font-family: monospace;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="hud">
+    BIO-SYNC: ARCHITECT OS v4.1<br>
+    STATE: BIO LINK SCANNING<br>
+    VOXELS: ACTIVE
+  </div>
+
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
