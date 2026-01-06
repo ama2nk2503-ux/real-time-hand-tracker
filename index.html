@@ -1,48 +1,504 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Real-Time Hand Tracking</title>
-
-  <!-- MediaPipe CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-    }
-
-    <video id="video" autoplay playsinline muted></video>
-<canvas id="canvas"></canvas>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Hand Interface</title>
     
-    #hud {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      color: cyan;
-      font-family: monospace;
-      font-size: 14px;
-    }
-  </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --color-bg: #050505;
+            --color-passive: #00ffcc;
+            --color-active: #ff0055;
+            --color-magic: #ea7023;
+            --color-love: #ff0066;
+            --color-star: #ffd700;
+            --font-tech: 'Courier New', Courier, monospace;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background-color: var(--color-bg); color: var(--color-passive);
+            font-family: var(--font-tech);
+        }
+
+        #input_video { display: none; }
+        #output_canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; object-fit: cover; 
+        }
+
+        #hud-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2; pointer-events: none;
+            padding: 20px; box-sizing: border-box;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        .hud-top-left {
+            border-left: 3px solid var(--color-passive);
+            padding-left: 15px; background: rgba(0,0,0,0.6);
+            padding: 15px; width: fit-content;
+            backdrop-filter: blur(4px); border-radius: 0 10px 10px 0;
+            transition: border-color 0.3s ease;
+        }
+        
+        .hud-status {
+            font-size: 13px; letter-spacing: 1px; margin-bottom: 5px;
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
+            font-weight: bold; white-space: pre-line; line-height: 1.4;
+        }
+
+        .hud-mode { font-size: 32px; font-weight: 900; text-transform: uppercase; transition: color 0.3s ease; }
+
+        .hud-instructions {
+            position: absolute; bottom: 40px; left: 50%;
+            transform: translateX(-50%); text-align: center;
+            opacity: 0.9; font-size: 16px; letter-spacing: 2px;
+            background: rgba(0,0,0,0.8); padding: 12px 25px;
+            border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);
+            text-transform: uppercase; color: #fff; font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        #magic-loader {
+            width: 0%; height: 4px; background: var(--color-magic);
+            position: absolute; bottom: 0; left: 0; transition: width 0.1s linear;
+        }
+
+        body.mode-passive .hud-top-left { border-color: var(--color-passive); }
+        body.mode-active .hud-top-left { border-color: var(--color-active); }
+        body.mode-active .hud-mode { color: var(--color-active); text-shadow: 0 0 10px var(--color-active); }
+        
+        body.mode-magic .hud-top-left { border-color: var(--color-magic); }
+        body.mode-magic .hud-mode { color: var(--color-magic); text-shadow: 0 0 20px var(--color-magic); }
+        body.mode-magic .hud-instructions { border-color: var(--color-magic); color: var(--color-magic); }
+        
+        body.mode-love .hud-top-left { border-color: var(--color-love); }
+        body.mode-love .hud-mode { color: var(--color-love); text-shadow: 0 0 20px var(--color-love); }
+        body.mode-love .hud-instructions { border-color: var(--color-love); color: var(--color-love); }
+
+    </style>
 </head>
+<body class="mode-passive">
 
-<body>
+    <video id="input_video"></video>
+    <canvas id="output_canvas"></canvas>
+    
+    <div id="hud-layer">
+        <div class="hud-top-left">
+            <div class="hud-status" id="status-text">SYSTEM: INITIALIZING...</div>
+            <div class="hud-mode" id="mode-text">PASSIVE</div>
+            <div id="magic-loader"></div>
+        </div>
+        
+        <div class="hud-instructions" id="instruction-text">
+            SYSTEM LOCKED // RAISE BOTH HANDS TO START
+        </div>
+    </div>
 
-  <div id="hud">
-    BIO-SYNC: ARCHITECT OS v4.1<br>
-    STATE: BIO LINK SCANNING<br>
-    VOXELS: ACTIVE
-  </div>
+    <script>
+        const VIDEO_ELEMENT = document.getElementById('input_video');
+        const CANVAS_ELEMENT = document.getElementById('output_canvas');
+        const CANVAS_CTX = CANVAS_ELEMENT.getContext('2d');
+        
+        const STATE = {
+            mode: 'PASSIVE', 
+            spellActive: false,
+            loveActive: false,
+            victoryActive: false,
+            hands: [] 
+        };
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
+        let unlockTimer = 0;
+        let spellToggleTimer = 0;
+        let loveHoldTimer = 0; 
+        let rotationFrame = 0;
 
-  <script src="script.js"></script>
+        let rainParticles = []; 
+        let orbitalParticles = []; 
+        let heartParticles = []; 
+        let starParticles = [];  
 
+        function resizeCanvas() {
+            CANVAS_ELEMENT.width = window.innerWidth;
+            CANVAS_ELEMENT.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        class HeartParticle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.size = Math.random() * 15 + 5;
+                this.vx = (Math.random() - 0.5) * 4; this.vy = -(Math.random() * 5 + 3); 
+                this.gravity = 0.15; this.life = 1.0; this.hue = Math.random() > 0.5 ? 340 : 360;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.life -= 0.01; }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.globalAlpha = this.life;
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 60%)`;
+                ctx.beginPath(); const s = this.size / 30; ctx.scale(s, s);
+                ctx.moveTo(0, 0); ctx.bezierCurveTo(-10, -10, -20, 5, 0, 25);
+                ctx.bezierCurveTo(20, 5, 10, -10, 0, 0); ctx.fill(); ctx.restore();
+            }
+        }
+
+        class StarParticle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.size = Math.random() * 10 + 2;
+                this.vx = (Math.random() - 0.5) * 6; this.vy = -(Math.random() * 6 + 2);
+                this.gravity = 0.2; this.life = 1.0; this.rotation = Math.random() * Math.PI;
+                this.rotSpeed = (Math.random() - 0.5) * 0.2;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.rotation += this.rotSpeed; this.life -= 0.015; }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.globalAlpha = this.life;
+                ctx.fillStyle = "#ffd700"; ctx.shadowBlur = 10; ctx.shadowColor = "white";
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * this.size, -Math.sin((18 + i * 72) * Math.PI / 180) * this.size);
+                    ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * this.size * 0.4, -Math.sin((54 + i * 72) * Math.PI / 180) * this.size * 0.4);
+                }
+                ctx.closePath(); ctx.fill(); ctx.restore();
+            }
+        }
+
+        class RainParticle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.w = Math.random() * 2 + 1; this.h = Math.random() * 15 + 5;
+                this.speedY = Math.random() * 10 + 5; this.life = 1.0; this.color = "#ea7023";
+            }
+            update() { this.y += this.speedY; this.life -= 0.05; }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.w, this.h); ctx.restore();
+            }
+        }
+
+        class OrbitalParticle {
+            constructor(cx, cy, r) {
+                this.a = Math.random() * 6.28; this.r = r * (0.8+Math.random()*0.4);
+                this.s = (0.05+Math.random()*0.05)*(Math.random()>0.5?1:-1);
+                this.cx = cx; this.cy = cy; this.sz = Math.random()*3+1; this.l = 1.0;
+            }
+            update(nx, ny) { this.cx = nx; this.cy = ny; this.a += this.s; this.l -= 0.02; }
+            draw(ctx) {
+                const px = this.cx + Math.cos(this.a)*this.r; const py = this.cy + Math.sin(this.a)*this.r;
+                ctx.save(); ctx.globalAlpha = this.l; ctx.fillStyle = "#ffaa00";
+                ctx.shadowColor="#ae2d17"; ctx.shadowBlur=10; ctx.beginPath();
+                ctx.arc(px,py,this.sz,0,6.28); ctx.fill(); ctx.restore();
+            }
+        }
+
+        function drawMandala(ctx, x, y, radius, time) {
+            ctx.save(); ctx.translate(x, y);
+            const orange = "#ea7023"; const red = "#ae2d17";
+            ctx.shadowBlur = 15; ctx.shadowColor = red;
+            ctx.beginPath(); ctx.lineWidth = 4; ctx.strokeStyle = `rgba(234, 112, 35, 0.8)`;
+            ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.lineWidth = 1; ctx.strokeStyle = orange;
+            ctx.arc(0, 0, radius * 0.85, 0, Math.PI * 2); ctx.stroke();
+            ctx.save(); ctx.rotate(time * 0.5); ctx.beginPath(); ctx.lineWidth = 2;
+            const sqSize = radius * 0.7; ctx.rect(-sqSize, -sqSize, sqSize * 2, sqSize * 2);
+            ctx.stroke(); ctx.restore();
+            ctx.save(); ctx.rotate(-time * 0.5); ctx.beginPath();
+            ctx.rect(-sqSize, -sqSize, sqSize * 2, sqSize * 2);
+            ctx.stroke(); ctx.restore();
+            ctx.save(); ctx.rotate(time * 0.2); ctx.font = `${radius * 0.12}px monospace`;
+            ctx.fillStyle = orange; ctx.textAlign = "center";
+            const text = "डाक्टर स्टीफन अजीबका ईसासा जादुई सर्कल";
+            for (let i = 0; i < text.length; i++) {
+                ctx.save(); ctx.rotate((i * 12 * Math.PI) / 180); ctx.translate(0, -radius * 0.55);
+                ctx.fillText(text[i], 0, 0); ctx.restore();
+            }
+            ctx.restore(); ctx.restore();
+        }
+
+        function dist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
+        }
+
+        function analyzeHand(landmarks, handedness) {
+            const wrist = landmarks[0];
+            const fingers = [];
+            
+            const thumbTip = landmarks[4];
+            const thumbIp = landmarks[3];
+            const pinkyBase = landmarks[17];
+            const thumbDist = dist(thumbTip, pinkyBase);
+            const ipDist = dist(thumbIp, pinkyBase);
+            fingers.push(thumbDist > ipDist * 1.1); 
+
+            const fingerIndices = [[8,6], [12,10], [16,14], [20,18]];
+            for(let i=0; i<4; i++) {
+                const tip = landmarks[fingerIndices[i][0]];
+                const pip = landmarks[fingerIndices[i][1]];
+                const dTip = dist(tip, wrist);
+                const dPip = dist(pip, wrist);
+                fingers.push(dTip > dPip);
+            }
+
+            const count = fingers.filter(Boolean).length;
+            const indexBase = landmarks[5];
+            const isPalm = (handedness === 'Right') ? (indexBase.x < pinkyBase.x) : (indexBase.x > pinkyBase.x);
+
+            let name = "UNKNOWN";
+            if (count === 5) name = "OPEN"; 
+            else if (count === 0) name = "FIST";
+            else if (count === 1) {
+                if (fingers[0]) name = "THUMBS UP"; 
+                if (fingers[1]) name = "POINTING";  
+            }
+            else if (count === 2) {
+                if (fingers[1] && fingers[2]) name = "PEACE";
+                if (fingers[0] && fingers[4]) name = "CALL ME";
+                if (fingers[1] && fingers[4]) name = "ROCK ON";
+            }
+            else if (count === 3) {
+                if (fingers[0] && fingers[1] && fingers[4]) name = "SPIDERMAN";
+            }
+
+            return { handedness, orientation: isPalm ? "PALM" : "BACK", name, fingers, landmarks };
+        }
+
+        function processResults(results) {
+            const w = CANVAS_ELEMENT.width;
+            const h = CANVAS_ELEMENT.height;
+            rotationFrame += 0.03;
+
+            CANVAS_CTX.save();
+            CANVAS_CTX.clearRect(0, 0, w, h);
+
+            CANVAS_CTX.filter = 'brightness(50%)';
+            if (STATE.spellActive || STATE.loveActive || STATE.victoryActive) CANVAS_CTX.filter = 'brightness(30%)';
+
+            const videoAspect = results.image.width / results.image.height;
+            const screenAspect = w / h;
+            let drawW, drawH, startX, startY;
+
+            if (screenAspect > videoAspect) {
+                 drawW = w; drawH = w / videoAspect; startX = 0; startY = (h - drawH) / 2;
+            } else {
+                 drawW = h * videoAspect; drawH = h; startX = (w - drawW) / 2; startY = 0;
+            }
+
+            CANVAS_CTX.save();
+            CANVAS_CTX.translate(w, 0); CANVAS_CTX.scale(-1, 1);
+            CANVAS_CTX.drawImage(results.image, startX, startY, drawW, drawH);
+            CANVAS_CTX.restore();
+            CANVAS_CTX.filter = 'none';
+
+            STATE.hands = [];
+            if (results.multiHandLandmarks) {
+                for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+                    STATE.hands.push(analyzeHand(results.multiHandLandmarks[i], results.multiHandedness[i].label));
+                }
+            }
+
+            STATE.loveActive = false;
+            STATE.victoryActive = false;
+            let potentialLove = false;
+            let potentialMagic = false;
+            let instrText = "SYSTEM ACTIVE. WAITING FOR GESTURES...";
+
+            if (STATE.mode === 'ACTIVE') {
+                
+                if (STATE.hands.length === 2) {
+                    const h1 = STATE.hands[0].landmarks; const h2 = STATE.hands[1].landmarks;
+                    const i1x = (1-h1[8].x)*w, i1y = h1[8].y*h;
+                    const i2x = (1-h2[8].x)*w, i2y = h2[8].y*h;
+                    const t1x = (1-h1[4].x)*w, t1y = h1[4].y*h;
+                    const t2x = (1-h2[4].x)*w, t2y = h2[4].y*h;
+                    const distI = Math.hypot(i1x-i2x, i1y-i2y);
+                    const distT = Math.hypot(t1x-t2x, t1y-t2y);
+
+                    if (distI < 120 && distT < 120) {
+                        potentialLove = true;
+                        instrText = "HOLD HEART GESTURE TO ACTIVATE ❤...";
+                        if (Date.now() - loveHoldTimer > 1000) {
+                            STATE.loveActive = true;
+                            instrText = "LOVE DETECTED: SPREADING JOY ❤";
+                            const cx = (i1x + i2x) / 2; const cy = (i1y + i2y) / 2;
+                            for(let k=0; k<3; k++) heartParticles.push(new HeartParticle(cx, cy));
+                        }
+                    } 
+                }
+                if (!potentialLove) loveHoldTimer = Date.now();
+
+                STATE.hands.forEach(handData => {
+                    if (handData.name === "PEACE") {
+                        STATE.victoryActive = true;
+                        instrText = "VICTORY DETECTED: CELEBRATION MODE ✌";
+                        const lm = handData.landmarks;
+                        [lm[8], lm[12]].forEach(tip => {
+                            if(Math.random()>0.5) starParticles.push(new StarParticle((1-tip.x)*w, tip.y*h));
+                        });
+                    }
+                    if (handData.name === "THUMBS UP") instrText = "STATUS: LIKED 👍";
+                    if (handData.name === "CALL ME") instrText = "STATUS: CALLING LINE... 🤙";
+                    if (handData.name === "SPIDERMAN") instrText = "STATUS: WEB SHOOTERS READY 🕸";
+                    if (handData.name === "ROCK ON") instrText = "STATUS: ROCKING OUT 🤘";
+                });
+
+                if (STATE.hands.length === 2) {
+                    const hasOpen = STATE.hands.some(h => h.name === 'OPEN');
+                    const hasFist = STATE.hands.some(h => h.name === 'FIST');
+                    if (hasOpen && hasFist) {
+                        potentialMagic = true;
+                        instrText = "HOLD GESTURE TO TOGGLE MAGIC... ✊";
+                        const elapsed = Date.now() - spellToggleTimer;
+                        const pct = Math.min(elapsed / 1000, 1) * 100;
+                        document.getElementById('magic-loader').style.width = pct + "%";
+
+                        if (elapsed > 1000) {
+                             STATE.spellActive = !STATE.spellActive;
+                             spellToggleTimer = Date.now() + 1000;
+                             document.getElementById('magic-loader').style.width = "0%";
+                        }
+                    } 
+                } 
+                
+                if (!potentialMagic) {
+                    spellToggleTimer = Date.now();
+                    document.getElementById('magic-loader').style.width = "0%";
+                }
+
+                if (STATE.spellActive && !potentialMagic) instrText = "MAGIC ACTIVE: FORM FISTS TO CAST SPELLS ✨";
+
+            } 
+            else { 
+                instrText = "SYSTEM LOCKED // RAISE BOTH HANDS (OPEN) TO START";
+                if (STATE.hands.length === 2 && STATE.hands.every(h => h.name === 'OPEN')) {
+                    instrText = "UNLOCKING SYSTEM...";
+                    if (Date.now() - unlockTimer > 1500) {
+                        STATE.mode = 'ACTIVE';
+                    }
+                } else unlockTimer = Date.now();
+            }
+
+            document.getElementById('instruction-text').innerText = instrText;
+
+            document.body.className = '';
+            if (STATE.mode === 'PASSIVE') document.body.classList.add('mode-passive');
+            else {
+                document.body.classList.add('mode-active');
+                if (STATE.loveActive) document.body.classList.add('mode-love');
+                else if (STATE.spellActive) document.body.classList.add('mode-magic');
+            }
+
+            if (STATE.mode === 'ACTIVE') {
+                let fistCenters = [];
+                STATE.hands.forEach(handData => {
+                    const wrist = handData.landmarks[0]; const middle = handData.landmarks[9];
+                    const cx = ((1 - wrist.x) * w + (1 - middle.x) * w) / 2;
+                    const cy = (wrist.y * h + middle.y * h) / 2;
+
+                    if (STATE.spellActive && handData.name === 'FIST') {
+                        const size = Math.abs((1-wrist.x)*w - (1-middle.x)*w) * 4 + 50; 
+                        drawMandala(CANVAS_CTX, cx, cy, size, rotationFrame);
+                        fistCenters.push({x: cx, y: cy});
+                        for(let i=0; i<3; i++) rainParticles.push(new RainParticle(cx + (Math.random()-0.5)*size*1.5, cy + (Math.random()-0.5)*size*1.5));
+                        for(let i=0; i<2; i++) orbitalParticles.push(new OrbitalParticle(cx, cy, size));
+                    }
+                });
+
+                for(let i=heartParticles.length-1; i>=0; i--) { heartParticles[i].update(); heartParticles[i].draw(CANVAS_CTX); if(heartParticles[i].life<=0) heartParticles.splice(i,1); }
+                for(let i=starParticles.length-1; i>=0; i--) { starParticles[i].update(); starParticles[i].draw(CANVAS_CTX); if(starParticles[i].life<=0) starParticles.splice(i,1); }
+                for(let i=rainParticles.length-1; i>=0; i--) { rainParticles[i].update(); rainParticles[i].draw(CANVAS_CTX); if(rainParticles[i].life<=0) rainParticles.splice(i,1); }
+                
+                if (STATE.spellActive && fistCenters.length > 0) {
+                    for(let i=orbitalParticles.length-1; i>=0; i--) {
+                        let p = orbitalParticles[i];
+                        let nearest = fistCenters[0]; let minD = Math.hypot(p.cx - nearest.x, p.cy - nearest.y);
+                        for(let fc of fistCenters) { let d = Math.hypot(p.cx - fc.x, p.cy - fc.y); if(d < minD) { nearest = fc; minD = d; } }
+                        p.update(nearest.x, nearest.y); p.draw(CANVAS_CTX); if(p.life <= 0) orbitalParticles.splice(i,1);
+                    }
+                } else orbitalParticles = [];
+            }
+
+            STATE.hands.forEach(handData => drawTechHand(handData, w, h));
+            updateHUD();
+            CANVAS_CTX.restore();
+        }
+
+        function drawTechHand(hand, w, h) {
+            let color = '#00ffcc';
+            if (STATE.mode === 'ACTIVE') {
+                color = '#ff0055';
+                if (STATE.spellActive) color = "#ea7023";
+                if (STATE.loveActive) color = "#ff0066";
+                if (STATE.victoryActive) color = "#ffd700";
+            }
+
+            const lms = hand.landmarks;
+            const project = (lm) => ({ x: (1 - lm.x) * w, y: lm.y * h });
+            const points = lms.map(project);
+            
+            const xs = points.map(p=>p.x), ys = points.map(p=>p.y);
+            const minX = Math.min(...xs)-20, minY = Math.min(...ys)-20;
+            const maxX = Math.max(...xs)+20, maxY = Math.max(...ys)+20;
+            
+            CANVAS_CTX.strokeStyle = color; CANVAS_CTX.lineWidth = 1;
+            CANVAS_CTX.setLineDash([10, 5]); CANVAS_CTX.strokeRect(minX, minY, maxX-minX, maxY-minY);
+            CANVAS_CTX.setLineDash([]);
+
+            CANVAS_CTX.lineWidth = 2; CANVAS_CTX.shadowColor = color; CANVAS_CTX.shadowBlur = 10;
+            const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+            
+            CANVAS_CTX.beginPath();
+            connections.forEach(([i, j]) => {
+                CANVAS_CTX.moveTo(points[i].x, points[i].y); CANVAS_CTX.lineTo(points[j].x, points[j].y);
+            });
+            CANVAS_CTX.stroke();
+
+            points.forEach((p, i) => {
+                CANVAS_CTX.beginPath(); CANVAS_CTX.fillStyle = (i%4===0 && i>0) ? '#fff' : color;
+                CANVAS_CTX.arc(p.x, p.y, i%4===0?5:3, 0, Math.PI*2); CANVAS_CTX.fill();
+            });
+
+            CANVAS_CTX.fillStyle = color; CANVAS_CTX.font = "12px Courier New";
+            CANVAS_CTX.fillText(`${hand.handedness} [${hand.name}]`, minX, minY - 10);
+        }
+
+        function updateHUD() {
+            let modeText = STATE.mode;
+            if (STATE.mode === 'ACTIVE') {
+                if(STATE.loveActive) modeText = "LOVE ❤";
+                else if(STATE.victoryActive) modeText = "VICTORY ✌";
+                else if(STATE.spellActive) modeText = "AGAMOTTO ✊";
+            }
+            document.getElementById('mode-text').innerText = modeText;
+
+            let status = "NO SIGNAL";
+            if(STATE.hands.length > 0) {
+                status = STATE.hands.map(h => {
+                    const f = h.fingers;
+                    return `[${h.handedness.toUpperCase()}] G:${h.name}\n` + 
+                           `THUMB : ${f[0] ? 'OPEN' : 'CLOSED'}\n` +
+                           `INDEX : ${f[1] ? 'OPEN' : 'CLOSED'}\n` +
+                           `MIDDLE: ${f[2] ? 'OPEN' : 'CLOSED'}\n` +
+                           `RING  : ${f[3] ? 'OPEN' : 'CLOSED'}\n` +
+                           `PINKY : ${f[4] ? 'OPEN' : 'CLOSED'}`;
+                }).join('\n\n');
+            }
+            document.getElementById('status-text').innerText = status;
+        }
+
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+        hands.onResults(processResults);
+
+        const camera = new Camera(VIDEO_ELEMENT, {
+            onFrame: async () => { await hands.send({image: VIDEO_ELEMENT}); },
+            width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 }
+        });
+        camera.start();
+
+    </script>
 </body>
-
 </html>
