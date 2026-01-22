@@ -41,7 +41,6 @@ Inspired by sci-fi HUDs, neural interfaces, and Doctor Strange-style magic circl
 - **HTML5**
 - **CSS3**
 - **JavaScript**
-- **MediaPipe Hands**
 - **Canvas API**
 
 No frameworks. No backend. Runs fully in the browser.
